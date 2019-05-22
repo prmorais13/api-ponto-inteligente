@@ -31,7 +31,7 @@ public class Lancamento implements Serializable {
 	private String localizacao;
 	private Date dataCriacao;
 	private Date dataAtualizacao;
-	private TipoEnum perfil;
+	private TipoEnum tipo;
 	private Funcionario funcionario;
 
 	public Lancamento() {
@@ -39,7 +39,7 @@ public class Lancamento implements Serializable {
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	public Long getId() {
 		return id;
 	}
@@ -95,13 +95,13 @@ public class Lancamento implements Serializable {
 	}
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "perfil", nullable = false)
-	public TipoEnum getPerfil() {
-		return perfil;
+	@Column(name = "tipo", nullable = false)
+	public TipoEnum getTipo() {
+		return tipo;
 	}
 
-	public void setPerfil(TipoEnum perfil) {
-		this.perfil = perfil;
+	public void setTipo(TipoEnum tipo) {
+		this.tipo = tipo;
 	}
 
 	@ManyToOne(fetch = FetchType.EAGER)
@@ -128,7 +128,7 @@ public class Lancamento implements Serializable {
 	@Override
 	public String toString() {
 		return "Lancamento [id=" + id + ", data=" + data + ", descricao=" + descricao + ", localizacao=" + localizacao
-				+ ", dataCriacao=" + dataCriacao + ", dataAtualizacao=" + dataAtualizacao + ", perfil=" + perfil
+				+ ", dataCriacao=" + dataCriacao + ", dataAtualizacao=" + dataAtualizacao + ", tipo=" + tipo
 				+ ", funcionario=" + funcionario + "]";
 	}
 
