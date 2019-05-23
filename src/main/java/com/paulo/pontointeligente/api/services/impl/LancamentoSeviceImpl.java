@@ -44,8 +44,5 @@ public class LancamentoSeviceImpl implements LancamentoService {
 		log.info("Removendo lancamento para o ID {}", id);
 		this.lancamentoRepository.deleteById(id);
 	}
-
 	
-	
-
 }
