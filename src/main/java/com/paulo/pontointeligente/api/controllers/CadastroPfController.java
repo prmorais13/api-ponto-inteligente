@@ -86,15 +86,16 @@ public class CadastroPfController {
 		funcionario.setEmail(cadastroPfDto.getEmail());
 		funcionario.setCpf(cadastroPfDto.getCpf());
 		funcionario.setPerfil(PerfilEnum.ROLE_USUARIO);
+		funcionario.setSenha(PasswordUtils.gerarByCrypt(cadastroPfDto.getSenha()));
 		
 		cadastroPfDto.getQtdHorasAlmoco()
 			.ifPresent(qtdHorasAlmoco -> funcionario.setQtdHorasAlmoco(Float.valueOf(qtdHorasAlmoco)));
+		
 		cadastroPfDto.getQtdHorasTrabalhoDia()
 			.ifPresent(qtdHorasTrabalhoDia -> funcionario.setQtdHorasTrabalhoDia(Float.valueOf(qtdHorasTrabalhoDia)));
+		
 		cadastroPfDto.getValorHora().ifPresent(valorHora -> funcionario.setValorHora(new BigDecimal(valorHora)));			
-		
-		funcionario.setSenha(PasswordUtils.gerarByCrypt(cadastroPfDto.getSenha()));
-		
+			
 		return funcionario;
 	}
 	
@@ -109,6 +110,12 @@ public class CadastroPfController {
 
 		funcionario.getQtdHorasAlmocoOpt()
 			.ifPresent(qtdHorasAlmoco -> cadastroPfDto.setQtdHorasAlmoco(Optional.of(Float.toString(qtdHorasAlmoco))));
+		
+		funcionario.getQtdHorasTrabalhoDiaOpt()
+		.ifPresent(qtdHorasTrabalhoDia -> cadastroPfDto.setQtdHorasTrabalhoDia(Optional.of(Float.toString(qtdHorasTrabalhoDia))));
+		
+		funcionario.getValorHoraOpt()
+		.ifPresent(valorHora -> cadastroPfDto.setValorHora(Optional.of(valorHora.toString())));
 		
 		return cadastroPfDto;
 	}
