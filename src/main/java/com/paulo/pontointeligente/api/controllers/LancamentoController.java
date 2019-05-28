@@ -1,8 +1,12 @@
 package com.paulo.pontointeligente.api.controllers;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Optional;
 
+import javax.validation.Valid;
+
+import org.apache.commons.lang3.EnumUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,15 +15,22 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.paulo.pontointeligente.api.dtos.LancamentoDto;
+import com.paulo.pontointeligente.api.entities.Funcionario;
 import com.paulo.pontointeligente.api.entities.Lancamento;
+import com.paulo.pontointeligente.api.enums.TipoEnum;
 import com.paulo.pontointeligente.api.response.Response;
 import com.paulo.pontointeligente.api.services.FuncionarioService;
 import com.paulo.pontointeligente.api.services.LancamentoService;
@@ -28,42 +39,41 @@ import com.paulo.pontointeligente.api.services.LancamentoService;
 @RequestMapping("/api/lancamentos")
 @CrossOrigin(origins = "*")
 public class LancamentoController {
-	
-	private static final Logger log  = LoggerFactory.getLogger(LancamentoController.class);
+
+	private static final Logger log = LoggerFactory.getLogger(LancamentoController.class);
 	private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd HH:mm:ss");
-	
+
 	@Autowired
 	private FuncionarioService funcionarioService;
-	
+
 	@Autowired
 	private LancamentoService lancamentoService;
-	
+
 	@Value("${paginacao.qtd_por_pagina}")
 	private int qtdPorPagina;
 
 	public LancamentoController() {
-		
+
 	}
-	
+
 	@GetMapping(value = "/funcionario/{funcionarioId}")
 	public ResponseEntity<Response<Page<LancamentoDto>>> listarPorFuncionarioId(
-		@PathVariable("funcionarioId") Long funcionarioId,
-		@RequestParam(value = "pag", defaultValue = "0") int pag,
-		@RequestParam(value = "ord", defaultValue = "id") String ord,
-		@RequestParam(value = "dir", defaultValue = "DESC") String dir) {
-		
-			log.info("Buscando lancamentos por ID do funcionário: {}, página: {}", funcionarioId, pag);
-			Response<LancamentoDto> response = new Response<LancamentoDto>();
-			
-			PageRequest pageRequest = PageRequest.of(pag, this.qtdPorPagina, Direction.valueOf(dir), ord);
-			Page<Lancamento> lancamentos = this.lancamentoService.buscarPorFuncionarioId(funcionarioId, pageRequest);
-			Page<LancamentoDto> lancamentosDto = lancamentos.map(lancamento -> this.converteLancamentoDto(lancamento));
-		
-			response.setData(lancamentosDto);
-			return ResponseEntity.ok(response);
-		}
+			@PathVariable("funcionarioId") Long funcionarioId, @RequestParam(value = "pag", defaultValue = "0") int pag,
+			@RequestParam(value = "ord", defaultValue = "id") String ord,
+			@RequestParam(value = "dir", defaultValue = "DESC") String dir) {
 
-	private Page<Lancamento> converteLancamentoDto(Lancamento lancamento) {
+		log.info("Buscando lancamentos por ID do funcionário: {}, página: {}", funcionarioId, pag);
+		Response<Page<LancamentoDto>> response = new Response<Page<LancamentoDto>>();
+
+		PageRequest pageRequest = PageRequest.of(pag, this.qtdPorPagina, Direction.valueOf(dir), ord);
+		Page<Lancamento> lancamentos = this.lancamentoService.buscarPorFuncionarioId(funcionarioId, pageRequest);
+		Page<LancamentoDto> lancamentosDto = lancamentos.map(lancamento -> this.converteLancamentoDto(lancamento));
+
+		response.setData(lancamentosDto);
+		return ResponseEntity.ok(response);
+	}
+
+	private LancamentoDto converteLancamentoDto(Lancamento lancamento) {
 		LancamentoDto lancamentoDto = new LancamentoDto();
 		lancamentoDto.setId(Optional.of(lancamento.getId()));
 		lancamentoDto.setData(this.dateFormat.format(lancamento.getData()));
@@ -71,77 +81,109 @@ public class LancamentoController {
 		lancamentoDto.setDescricao(lancamento.getDescricao());
 		lancamentoDto.setLocalizacao(lancamento.getLocalizacao());
 		lancamentoDto.setFuncionarioId(lancamento.getFuncionario().getId());
-		
+
 		return lancamentoDto;
 	}
-	}
-	
-	/**
-	 * @param cadastroPjDto
-	 * @param result
-	 * @return
-	 */
-	/*@PostMapping
-	public ResponseEntity<Response<CadastroPjDto>> cadastrar(@Valid @RequestBody CadastroPjDto cadastroPjDto,
-			BindingResult result) {
-		log.info("Cadastrando PJ: {}", cadastroPjDto.toString());
-		Response<CadastroPjDto> response = new Response<CadastroPjDto>();
-		
-		validarDadosExistentes(cadastroPjDto, result);	
-		Empresa empresa = this.converterDtoParaEmpresa(cadastroPjDto);
-		Funcionario funcionario = this.converterDtoPraFuncionario(cadastroPjDto, result);
-		
-		if (result.hasErrors()) {
-			log.info("Erro validando cadastro PJ: {}", result.getAllErrors());
-			result.getAllErrors().forEach(error -> response.getErrors().add(error.getDefaultMessage()));
-			return ResponseEntity.badRequest().body(response);
+
+	@GetMapping(value = "{id}")
+	private ResponseEntity<Response<LancamentoDto>> listarPorId(@PathVariable() Long id) {
+		log.info("Buscando lancamento por ID: {}", id);
+
+		Response<LancamentoDto> response = new Response<LancamentoDto>();
+		Optional<Lancamento> lancamento = this.lancamentoService.buscarPorId(id);
+
+		if (!lancamento.isPresent()) {
+			log.info("Lancamento não encontrado para o ID: {}", id);
+			response.getErrors().add("Lancamento não encontrado para o id " + id);
+			ResponseEntity.badRequest().body(response);
 		}
-		
-		this.empresaService.persistir(empresa);
-		funcionario.setEmpresa(empresa);
-		this.funcionarioService.persistir(funcionario);
-		
-		response.setData(this.converterCadastroPjDto(funcionario));
+
+		response.setData(this.converteLancamentoDto(lancamento.get()));
 		return ResponseEntity.ok(response);
 	}
 
-	private void validarDadosExistentes(CadastroPjDto cadastroPjDto, BindingResult result) {
-		this.empresaService.buscarPorCnpj(cadastroPjDto.getCnpj())
-			.ifPresent(empresa -> result.addError(new ObjectError("empresa", "Empresa já existente!")));
+	@PostMapping()
+	private ResponseEntity<Response<LancamentoDto>> adicionar(@Valid @RequestBody LancamentoDto lancamentoDto,
+			BindingResult result) throws ParseException {
 		
-		this.funcionarioService.buscarPorCpf(cadastroPjDto.getCpf())
-			.ifPresent(funcinario -> result.addError(new ObjectError("funcionario", "CPF já existente!")));
+		log.info("Adicionando lancamento: {}", lancamentoDto.toString());
+		Response<LancamentoDto> response = new Response<LancamentoDto>();
+		validarFucionario(lancamentoDto,result);
+		Lancamento lancamento = this.converterDtoParaLancamento(lancamentoDto, result);
 		
-		this.funcionarioService.buscarPorEmail(cadastroPjDto.getEmail())
-		.ifPresent(funcinario -> result.addError(new ObjectError("funcionario", "Email já existente!")));
+		if (result.hasErrors()) {
+			log.info("Erro validando lancamento: {}", result.getAllErrors());
+			result.getAllErrors().forEach(error -> response.getErrors().add(error.getDefaultMessage()));
+			ResponseEntity.badRequest().body(response);
+		}
+		
+		lancamento = this.lancamentoService.persistir(lancamento);
+		response.setData(this.converteLancamentoDto(lancamento));
+		return ResponseEntity.ok(response);
+	}
+	
+	@PutMapping(value = "{id}")
+	private ResponseEntity<Response<LancamentoDto>> atualizar(@PathVariable() Long id, @Valid
+			@RequestBody LancamentoDto lancamentoDto, BindingResult result) throws ParseException {
+		
+		log.info("Atualizando lancamento: {}", lancamentoDto.toString());
+		Response<LancamentoDto> response = new Response<LancamentoDto>();
+		validarFucionario(lancamentoDto,result);
+		lancamentoDto.setId(Optional.of(id));
+		Lancamento lancamento = this.converterDtoParaLancamento(lancamentoDto, result);
+		
+		if (result.hasErrors()) {
+			log.info("Erro validando lancamento: {}", result.getAllErrors());
+			result.getAllErrors().forEach(error -> response.getErrors().add(error.getDefaultMessage()));
+			ResponseEntity.badRequest().body(response);
+		}
+		
+		lancamento = this.lancamentoService.persistir(lancamento);
+		response.setData(this.converteLancamentoDto(lancamento));
+		return ResponseEntity.ok(response);
 	}
 
-	private Empresa converterDtoParaEmpresa(CadastroPjDto cadastroPjDto) {
-		Empresa empresa = new Empresa();
-		empresa.setCnpj(cadastroPjDto.getCnpj());
-		empresa.setRazaoSocial(cadastroPjDto.getRazaoSocial());
-		return empresa;
-	}
-	
-	private Funcionario converterDtoPraFuncionario(CadastroPjDto cadastroPjDto, BindingResult result) {
-		Funcionario funcionario = new Funcionario();
-		funcionario.setNome(cadastroPjDto.getNome());
-		funcionario.setEmail(cadastroPjDto.getEmail());
-		funcionario.setCpf(cadastroPjDto.getCpf());
-		funcionario.setPerfil(PerfilEnum.ROLE_ADMIN);
-		funcionario.setSenha(PasswordUtils.gerarByCrypt(cadastroPjDto.getSenha()));
-		return funcionario;
-	}
-	
-	private CadastroPjDto converterCadastroPjDto(Funcionario funcionario) {
-		CadastroPjDto cadastroPjDto = new CadastroPjDto();
-		cadastroPjDto.setId(funcionario.getId());
-		cadastroPjDto.setNome(funcionario.getNome());
-		cadastroPjDto.setEmail(funcionario.getEmail());
-		cadastroPjDto.setCpf(funcionario.getCpf());
-		cadastroPjDto.setRazaoSocial(funcionario.getEmpresa().getRazaoSocial());
-		cadastroPjDto.setCnpj(funcionario.getEmpresa().getCnpj());
+	private Lancamento converterDtoParaLancamento(LancamentoDto lancamentoDto, BindingResult result) throws ParseException {
+		Lancamento lancamento = new Lancamento();
 		
-		return cadastroPjDto;
+		if (!lancamentoDto.getId().isPresent()) {
+			Optional<Lancamento> lanc = this.lancamentoService.buscarPorId(lancamentoDto.getId().get());
+			if (lanc.isPresent()) {
+				lancamento = lanc.get();
+			} else {
+				result.addError(new ObjectError("lancamento", "Lançamento não encontrado!"));
+			}
+		} else {
+			lancamento.setFuncionario(new Funcionario());
+			lancamento.getFuncionario().setId(lancamentoDto.getFuncionarioId());
+		}
+		
+		lancamento.setDescricao(lancamentoDto.getDescricao());
+		lancamento.setLocalizacao(lancamentoDto.getLocalizacao());
+		lancamento.setData(this.dateFormat.parse(lancamentoDto.getData()));
+		
+		if (EnumUtils.isValidEnum(TipoEnum.class, lancamentoDto.getId().toString())) {
+			lancamento.setTipo(TipoEnum.valueOf(lancamentoDto.getTipo()));
+		} else {
+			result.addError(new ObjectError("tipo", "Tipo inválido!"));
+		}
+		return lancamento;
 	}
-*/
+
+	private void validarFucionario(LancamentoDto lancamentoDto, BindingResult result) {
+		
+		if (lancamentoDto.getFuncionarioId() == null) {
+			result.addError(new ObjectError("lancamento", "Funcionário não informado!"));
+			return;
+		}
+		
+		log.info("Validando funcionário: {}", lancamentoDto.getFuncionarioId());
+		Optional<Funcionario> funcionario = this.funcionarioService.buscarPorId(lancamentoDto.getFuncionarioId());
+		
+		if (!funcionario.isPresent()) {
+			result.addError(new ObjectError("funcionario", "Funcionario não encontrado. ID inexistente!"));
+		}
+	}
+	
+	
+}
