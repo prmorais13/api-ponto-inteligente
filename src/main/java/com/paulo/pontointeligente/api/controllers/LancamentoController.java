@@ -108,7 +108,7 @@ public class LancamentoController {
 		
 		log.info("Adicionando lancamento: {}", lancamentoDto.toString());
 		Response<LancamentoDto> response = new Response<LancamentoDto>();
-		validarFucionario(lancamentoDto,result);
+		validarFucionario(lancamentoDto, 	result);
 		Lancamento lancamento = this.converterDtoParaLancamento(lancamentoDto, result);
 		
 		if (result.hasErrors()) {
@@ -146,7 +146,7 @@ public class LancamentoController {
 	private Lancamento converterDtoParaLancamento(LancamentoDto lancamentoDto, BindingResult result) throws ParseException {
 		Lancamento lancamento = new Lancamento();
 		
-		if (!lancamentoDto.getId().isPresent()) {
+		if (lancamentoDto.getId().isPresent()) {
 			Optional<Lancamento> lanc = this.lancamentoService.buscarPorId(lancamentoDto.getId().get());
 			if (lanc.isPresent()) {
 				lancamento = lanc.get();
@@ -162,7 +162,7 @@ public class LancamentoController {
 		lancamento.setLocalizacao(lancamentoDto.getLocalizacao());
 		lancamento.setData(this.dateFormat.parse(lancamentoDto.getData()));
 		
-		if (EnumUtils.isValidEnum(TipoEnum.class, lancamentoDto.getId().toString())) {
+		if (EnumUtils.isValidEnum(TipoEnum.class, lancamentoDto.getTipo())) {
 			lancamento.setTipo(TipoEnum.valueOf(lancamentoDto.getTipo()));
 		} else {
 			result.addError(new ObjectError("tipo", "Tipo inválido!"));
