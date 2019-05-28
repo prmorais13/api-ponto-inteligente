@@ -15,9 +15,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -72,35 +74,24 @@ public class LancamentoController {
 		response.setData(lancamentosDto);
 		return ResponseEntity.ok(response);
 	}
-
-	private LancamentoDto converteLancamentoDto(Lancamento lancamento) {
-		LancamentoDto lancamentoDto = new LancamentoDto();
-		lancamentoDto.setId(Optional.of(lancamento.getId()));
-		lancamentoDto.setData(this.dateFormat.format(lancamento.getData()));
-		lancamentoDto.setTipo(lancamento.getTipo().toString());
-		lancamentoDto.setDescricao(lancamento.getDescricao());
-		lancamentoDto.setLocalizacao(lancamento.getLocalizacao());
-		lancamentoDto.setFuncionarioId(lancamento.getFuncionario().getId());
-
-		return lancamentoDto;
-	}
-
-	@GetMapping(value = "{id}")
-	private ResponseEntity<Response<LancamentoDto>> listarPorId(@PathVariable() Long id) {
+	
+	@GetMapping(value = "/{id}")
+	public ResponseEntity<Response<LancamentoDto>> listarPorId(@PathVariable() Long id) {
 		log.info("Buscando lancamento por ID: {}", id);
 
 		Response<LancamentoDto> response = new Response<LancamentoDto>();
 		Optional<Lancamento> lancamento = this.lancamentoService.buscarPorId(id);
-
+		
 		if (!lancamento.isPresent()) {
 			log.info("Lancamento não encontrado para o ID: {}", id);
 			response.getErrors().add("Lancamento não encontrado para o id " + id);
-			ResponseEntity.badRequest().body(response);
+			return ResponseEntity.badRequest().body(response);
 		}
 
 		response.setData(this.converteLancamentoDto(lancamento.get()));
 		return ResponseEntity.ok(response);
 	}
+	
 
 	@PostMapping()
 	private ResponseEntity<Response<LancamentoDto>> adicionar(@Valid @RequestBody LancamentoDto lancamentoDto,
@@ -108,7 +99,7 @@ public class LancamentoController {
 		
 		log.info("Adicionando lancamento: {}", lancamentoDto.toString());
 		Response<LancamentoDto> response = new Response<LancamentoDto>();
-		validarFucionario(lancamentoDto, 	result);
+		validarFucionario(lancamentoDto, result);
 		Lancamento lancamento = this.converterDtoParaLancamento(lancamentoDto, result);
 		
 		if (result.hasErrors()) {
@@ -141,6 +132,23 @@ public class LancamentoController {
 		lancamento = this.lancamentoService.persistir(lancamento);
 		response.setData(this.converteLancamentoDto(lancamento));
 		return ResponseEntity.ok(response);
+	}
+	
+	@DeleteMapping(value = "/{id}")
+	@PreAuthorize("hasAnyRole('ADMIN')")
+	public ResponseEntity<Response<String>> remover(@PathVariable("id") Long id) {
+		log.info("Removendo lançamento: {}", id);
+		Response<String> response = new Response<String>();
+		Optional<Lancamento> lancamento = this.lancamentoService.buscarPorId(id);
+
+		if (!lancamento.isPresent()) {
+			log.info("Erro ao remover devido ao lançamento ID: {} ser inválido.", id);
+			response.getErrors().add("Erro ao remover lançamento. Registro não encontrado para o id " + id);
+			return ResponseEntity.badRequest().body(response);
+		}
+
+		this.lancamentoService.remover(id);
+		return ResponseEntity.ok(new Response<String>());
 	}
 
 	private Lancamento converterDtoParaLancamento(LancamentoDto lancamentoDto, BindingResult result) throws ParseException {
@@ -183,6 +191,18 @@ public class LancamentoController {
 		if (!funcionario.isPresent()) {
 			result.addError(new ObjectError("funcionario", "Funcionario não encontrado. ID inexistente!"));
 		}
+	}
+	
+	private LancamentoDto converteLancamentoDto(Lancamento lancamento) {
+		LancamentoDto lancamentoDto = new LancamentoDto();
+		lancamentoDto.setId(Optional.of(lancamento.getId()));
+		lancamentoDto.setData(this.dateFormat.format(lancamento.getData()));
+		lancamentoDto.setTipo(lancamento.getTipo().toString());
+		lancamentoDto.setDescricao(lancamento.getDescricao());
+		lancamentoDto.setLocalizacao(lancamento.getLocalizacao());
+		lancamentoDto.setFuncionarioId(lancamento.getFuncionario().getId());
+
+		return lancamentoDto;
 	}
 	
 	
