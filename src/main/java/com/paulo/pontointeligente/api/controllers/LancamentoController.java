@@ -105,7 +105,7 @@ public class LancamentoController {
 		if (result.hasErrors()) {
 			log.info("Erro validando lancamento: {}", result.getAllErrors());
 			result.getAllErrors().forEach(error -> response.getErrors().add(error.getDefaultMessage()));
-			ResponseEntity.badRequest().body(response);
+			return ResponseEntity.badRequest().body(response);
 		}
 		
 		lancamento = this.lancamentoService.persistir(lancamento);
@@ -126,7 +126,7 @@ public class LancamentoController {
 		if (result.hasErrors()) {
 			log.info("Erro validando lancamento: {}", result.getAllErrors());
 			result.getAllErrors().forEach(error -> response.getErrors().add(error.getDefaultMessage()));
-			ResponseEntity.badRequest().body(response);
+			return ResponseEntity.badRequest().body(response);
 		}
 		
 		lancamento = this.lancamentoService.persistir(lancamento);
